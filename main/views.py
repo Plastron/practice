@@ -21,10 +21,11 @@ def index(request):
         # check whether it's valid:
         if form_1.is_valid():
             # process the data in form.cleaned_data as required
+            form_1.save()
             text = form_1.cleaned_data['text_input']
             content_file = create_ticker_video(text)
             # redirect to a new URL:
-            all_files = models.UploadedFile.objects.all()
+            all_files = models.UploadedFile.objects.last()
             return render(request, 'main/index_2.html', {'form_1': form_1, 'files': all_files })
 
     # if a GET (or any other method) we'll create a blank form
@@ -36,19 +37,6 @@ def index(request):
 def test(request):
     return HttpResponse("<h4>Test text</h4>")
 
-"""
-@csrf_exempt
-def upload_file(request):
-    if request.method == 'POST':
-        form = forms.UploadFileForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.save()
-            return redirect('upload_file')
-    else:
-        form = forms.UploadFileForm()
-    files = models.UploadedFile.objects.all()
-    return render(request, 'upload_file.html', {'form': form, 'files': files})
-"""
 
 @csrf_exempt
 def download_file(request, file_id):
