@@ -1,14 +1,15 @@
-from django.shortcuts import render
-from django.http import HttpResponse, HttpResponseRedirect
+from django.shortcuts import render, redirect
+from django.http import HttpResponse, HttpResponseRedirect, FileResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.core.files.base import ContentFile
+from django.views import View
 import os
 
 from moviepy.editor import *
 from google.colab import files
-from . import forms
+from . import forms, models
 
 
 @csrf_exempt
@@ -21,10 +22,10 @@ def index(request):
         if form_1.is_valid():
             # process the data in form.cleaned_data as required
             text = form_1.cleaned_data['text_input']
-            content_file = create_ticker_video(text)          
-            video_path = os.path.join(settings.MEDIA_ROOT, 'ticker_video.mp4')
+            content_file = create_ticker_video(text)
             # redirect to a new URL:
-            return render(request, 'main/index_2.html', {'form_1': form_1, 'video_path': video_path })
+            all_files = models.UploadedFile.objects.all()
+            return render(request, 'main/index_2.html', {'form_1': form_1, 'files': all_files })
 
     # if a GET (or any other method) we'll create a blank form
     form_1 = forms.TextInputForm
@@ -34,6 +35,28 @@ def index(request):
 @csrf_exempt
 def test(request):
     return HttpResponse("<h4>Test text</h4>")
+
+"""
+@csrf_exempt
+def upload_file(request):
+    if request.method == 'POST':
+        form = forms.UploadFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('upload_file')
+    else:
+        form = forms.UploadFileForm()
+    files = models.UploadedFile.objects.all()
+    return render(request, 'upload_file.html', {'form': form, 'files': files})
+"""
+
+@csrf_exempt
+def download_file(request, file_id):
+    uploaded_file = models.UploadedFile.objects.get(pk=file_id)
+    response = HttpResponse(uploaded_file.file, content_type='application/force-download')
+    response['Content-Disposition'] = f'attachment; filename="{uploaded_file.file.name}"'
+    return response
+
 
 def create_ticker_video(text, duration = 3, w = 100, h = 100):
 
@@ -65,10 +88,16 @@ def create_ticker_video(text, duration = 3, w = 100, h = 100):
 
     # Combine the background and moving text clips into one video
     video = CompositeVideoClip([bg_clip, txt_moving])
+    video_2 = CompositeVideoClip([bg_clip, txt_moving])
     # Create the ticker video
 
     # Write the video to a file
-    #output_file = "ticker_video.mp4"
-    #video.write_videofile(output_file, codec='libx264', fps=30)
+    output_file_name = "new_ticker_video.mp4"
+    path = os.path.join(settings.MEDIA_ROOT, output_file_name)
+    video.write_videofile(path, codec='libx264', fps=30)
 
-    return video
+    saving_video_file = models.UploadedFile()
+    saving_video_file.file.name = path
+    saving_video_file.save()
+
+    return video_2
